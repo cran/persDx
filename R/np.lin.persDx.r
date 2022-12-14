@@ -1,4 +1,4 @@
-lin.persDx=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
+np.lin.persDx=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   ###
   #1. direction
   ###
@@ -157,11 +157,12 @@ lin.persDx=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   AUC=lpd.auc(D.comb,YAB.comb)
 
   ###
-  #6. plot
+  #7. plot
   ###
   if(PLOT==TRUE){
     roc.A=pROC::roc(D~YA,direction="<",levels=c(0,1))
     roc.B=pROC::roc(D~YB,direction="<",levels=c(0,1))
+
     roc.AB=pROC::roc(D.comb~YAB.comb,direction="<",levels=c(0,1))
 
     tp.A=roc.A$sensitivities;   fp.A=1-roc.A$specificities
@@ -175,10 +176,9 @@ lin.persDx=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
     legend("bottomright",c("AUC","AUC.A","AUC.B"),col=c(1,2,4),lwd=c(2,1,1),bty='n')
   }
 
-  if(dirA==">")
-    df$YA=-YA
-  if(dirB==">")
-    df$YB=-YB
+  df$YC=YAB.comb
+  if(dirA==">") df$YA=-YA
+  if(dirB==">") df$YB=-YB
 
   theta.hat=c(theta.hat)
   names(theta.hat)=paste0("theta",0:p)

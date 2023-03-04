@@ -1,4 +1,5 @@
 importFrom("pROC", "roc")
+importFrom("survivalROC", "survivalROC.C")
 importFrom("graphics", "abline", "legend", "par", "points")
 
-export(np.lin.persDx, np.lin.persDx)
+export(np_lpd, np_lpd_survival)

@@ -1,7 +1,7 @@
 ###
 #0. empirical auc
 ###
-lpd.auc=function(D,Y){
+np_lpd_auc=function(D,Y){
   Y1=Y[D==1]
   Y0=Y[D==0]
   n1=length(Y1)
@@ -14,7 +14,7 @@ lpd.auc=function(D,Y){
 ###
 #1. subgroup auc with 1 cov
 ###
-lpd.cov1.subauc=function(D,YA,YB,Xq,alpha0,alpha1){
+np_lpd_cov1_subauc=function(D,YA,YB,Xq,alpha0,alpha1){
   #1. tau.hat
   eqL=alpha1*Xq
   eqR=alpha1*alpha0
@@ -33,7 +33,7 @@ lpd.cov1.subauc=function(D,YA,YB,Xq,alpha0,alpha1){
   D.comb=c(DA,DB)
   YAB.comb=c(YAA,YBB)
 
-  AUC=lpd.auc(D.comb,YAB.comb)
+  AUC=np_lpd_auc(D.comb,YAB.comb)
 
   #3. sample size
   #n1.A=sum(DA==1)
@@ -47,7 +47,7 @@ lpd.cov1.subauc=function(D,YA,YB,Xq,alpha0,alpha1){
 ###
 #1. subgroup auc with 2 cov
 ###
-lpd.cov2.subauc=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1,beta2){ #alpha0q is not needed
+np_lpd_cov2_subauc=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1,beta2){ #alpha0q is not needed
   #1. tau.hat
   if(is.infinite(beta2)){
     eqL=beta1*Xr
@@ -71,7 +71,7 @@ lpd.cov2.subauc=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1,beta2){ #alph
   D.comb=c(DA,DB)
   YAB.comb=c(YAA,YBB)
 
-  AUC=lpd.auc(D.comb,YAB.comb)
+  AUC=np_lpd_auc(D.comb,YAB.comb)
 
   #3. sample size
   #n1.A=sum(DA==1)

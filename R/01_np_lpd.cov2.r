@@ -1,5 +1,5 @@
 #estimate decision rule based on emprical AUC with univariate covariate (X)
-lpd.cov2=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r){
+np_lpd_cov2=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r){
 
   beta2.unq=sort(unique(c((Xq-alpha0q)/(Xr-alpha0r)))) #0 and (Inf or -Inf) are always included
   beta0.unq=alpha0q-beta2.unq*alpha0r
@@ -13,10 +13,10 @@ lpd.cov2=function(D,YA,YB,Xq,Xr,alpha0q,alpha0r){
     beta0=beta0.unq[j]
 
     beta1.pt=1 #when beta2=1
-    AUC.pt[j]=lpd.cov2.subauc(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1.pt,beta2)
+    AUC.pt[j]=np_lpd_cov2_subauc(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1.pt,beta2)
 
     beta1.nt=-1 #when beta2=-1
-    AUC.nt[j]=lpd.cov2.subauc(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1.nt,beta2)
+    AUC.nt[j]=np_lpd_cov2_subauc(D,YA,YB,Xq,Xr,alpha0q,alpha0r,beta0,beta1.nt,beta2)
   }
   Midx.pt=is.finite(AUC.pt)
   Midx.nt=is.finite(AUC.nt)

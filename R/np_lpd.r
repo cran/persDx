@@ -14,8 +14,8 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   n=n1+n0
 
   #2.2. subggroup & x
-  sub=rep(NA,n)
-  df=data.frame(D,YA,YB,X,sub)
+  tau=rep(NA,n)
+  df=data.frame(D,YA,YB,X,tau)
 
   p=ncol(df)-4 #in case X is a vector.
   if(p==1)
@@ -42,8 +42,8 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   }
   res1.mat=do.call("rbind",res1)
   if(sum(!is.na(res1.mat[,1]))==0){ #no improvements
-    if(AUCA>=AUCB){; AUC=AUCA; df$sub="A"; theta=c(rep(0,p)); theta0=-Inf
-    }else{;          AUC=AUCB; df$sub="B"; theta=c(rep(0,p)); theta0=Inf
+    if(AUCA>=AUCB){; AUC=AUCA; df$tau="A"; theta=c(rep(0,p)); theta0=-Inf
+    }else{;          AUC=AUCB; df$tau="B"; theta=c(rep(0,p)); theta0=Inf
     }
     theta.hat=c(-theta0,theta)
     names(theta.hat)=paste0("theta",0:p)
@@ -120,25 +120,26 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   ###
   #5. subgroup AUCs
   ###
+  #5.1. tau
   theta.hat=matrix(c(-theta0,theta),ncol=1) #equivalent to X1%*%theta>theta0
   X1=as.matrix(cbind(1,X))
   LP=X1%*%theta.hat #linear predicttor for personalized diagnostics rule
 
-  subA=which(LP>=0)
-  subB=which(LP<0)
+  tau=NA
+  tau[which(LP>=0)]="A"
+  tau[which(LP<0)]="B"
+  df$tau=tau
 
-  df$sub[subA]="A"
-  df$sub[subB]="B"
+  #5.2. subAUC
+  DA=D[tau=="A"]
+  YAA=YA[tau=="A"]
 
-  DA=df$D[subA]
-  YAA=df$YA[subA]
+  DB=D[tau=="B"]
+  YBB=YB[tau=="B"]
 
-  DB=df$D[subB]
-  YBB=df$YB[subB]
-
-  #5.2 subAUC
   D.comb=c(DA,DB)
   YAB.comb=c(YAA,YBB)
+
   AUC=np_lpd_auc(D.comb,YAB.comb)
 
   ###
@@ -167,7 +168,7 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
 
   theta.hat=c(theta.hat)
   names(theta.hat)=paste0("theta",0:p)
-  colnames(df)=c("D","YA","YB","X","tau","YC")
+
   return(list(df=df,
               AUCA=AUCA,AUCB=AUCB,     #global AUC
               AUC=AUC,

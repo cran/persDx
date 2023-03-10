@@ -7,8 +7,8 @@
 \tabular{ll}{
 Package: \tab persDx\cr
 Type: \tab Package\cr
-Version: \tab 0.3.0\cr
-Date: \tab 2023-03-03\cr
+Version: \tab 0.4.0\cr
+Date: \tab 2023-03-09\cr
 License: \tab GPL (>= 2)\cr
 }
 }

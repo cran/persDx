@@ -1,8 +1,9 @@
 Package: persDx
 Type: Package
-Title: Estimating Personalized Diagnostics Rules
-Version: 0.4.0
-Date: 2023-03-09
+Title: Personalized Diagnostics Rules for Subgroup Identification and
+        Personalized Biomarker Discovery
+Version: 0.5.0
+Date: 2023-08-15
 Authors@R: 
   c(person(given = "Yunro",
            family = "Chung",
@@ -10,12 +11,12 @@ Authors@R:
            email = "yunro.chung@asu.edu",
            comment = c(ORCID = "0000-0001-9125-9277"))
     )
-Description: Recommend the optimal biomarker for disease screening or diagnosis based on patients' individual characteristics.
+Description: Tailoring the optimal biomarker(s) for disease screening or diagnosis based on subjects' individual characteristics.
 License: GPL (>= 2)
-Depends: R (>= 4.2.0), pROC, survivalROC
+Depends: R (>= 4.2.0), pROC, survivalROC, stats, graphics
 NeedsCompilation: no
-Packaged: 2023-03-10 06:31:15 UTC; roy
+Packaged: 2023-08-16 06:05:19 UTC; roy
 Author: Yunro Chung [aut, cre] (<https://orcid.org/0000-0001-9125-9277>)
 Maintainer: Yunro Chung <yunro.chung@asu.edu>
 Repository: CRAN
-Date/Publication: 2023-03-10 09:40:07 UTC
+Date/Publication: 2023-08-16 06:30:02 UTC

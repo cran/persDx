@@ -1,4 +1,8 @@
-np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
+np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",
+                eps=0.01, plot=TRUE,
+                A=0,B=0,c=2,d=2){
+
+  num.out=3 #number of outcome: D, YA, YB
   ###
   #1. direction
   ###
@@ -14,10 +18,10 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   n=n1+n0
 
   #2.2. subggroup & x
-  tau=rep(NA,n)
-  df=data.frame(D,YA,YB,X,tau)
+  tau=YC=rep(NA,n)
+  df=data.frame(D,YA,YB,X,tau,YC)
 
-  p=ncol(df)-4 #in case X is a vector.
+  p=ncol(df)-(num.out+2) #in case X is a vector, where 3 for D,YA,YB and 2 for tau, YC
   if(p==1)
     X=as.matrix(X)
 
@@ -32,146 +36,174 @@ np_lpd=function(D,YA,YB,X,dirA="<",dirB="<",eps=0.01, PLOT=TRUE){
   ###
   #4.1. grid search
   STEP=1
-  sel.p=AUC.p=NA  #which cov is selected & corresponding AUC
+
+  sel.p=AUC.p=rep(NA,p)  #which cov is selected & corresponding AUC
   cov.idx=1:p     #candidate cov idex
-  theta=rep(0,p); theta0=NA
-  res1=list()
-  for(q in cov.idx){
-    Xq=X[,q]
-    res1[[q]]=np_lpd_cov1(D,YA,YB,Xq)
-  }
-  res1.mat=do.call("rbind",res1)
-  if(sum(!is.na(res1.mat[,1]))==0){ #no improvements
-    if(AUCA>=AUCB){; AUC=AUCA; df$tau="A"; theta=c(rep(0,p)); theta0=-Inf
-    }else{;          AUC=AUCB; df$tau="B"; theta=c(rep(0,p)); theta0=Inf
+
+  theta0=rep(0,p)
+  theta1=data.frame(matrix(0,nrow=p,ncol=p))
+  colnames(theta1)=1:p
+
+  fit1=np_lpd_cov1(D=D,YA=YA,YB=YB,X=X,cov.idx=cov.idx,p=p,
+                   STEP=STEP,AUC.p=AUC.p,sel.p=sel.p,theta0=theta0,theta1=theta1,
+                   AUCA=AUCA,AUCB=AUCB, n=n)
+
+  res1=fit1$res1
+  AUC.p=fit1$AUC.p
+  sel.p=fit1$sel.p
+  theta0=fit1$theta0
+  theta1=fit1$theta1
+
+  #4.2. grid rotation
+  AUC.inc=fit1$AUC.p[1]-max(AUCA,AUCB)
+  if(AUC.inc>=eps){
+    if(p>=2){
+      STEP=2
+
+      #4.2.1. threshold modification for Xr
+      SD=apply(X,2,sd)
+      MIN=apply(X,2,min)
+      MAX=apply(X,2,max)
+      LW0=pmax(MIN,res1$alpha0-c*SD) #block
+      UP0=pmin(MAX,res1$alpha0+c*SD)
+      ALPHA0=list()
+      for(j in 1:p)
+        ALPHA0[[j]]=c(res1$alpha0[j],runif(A,LW0[j],UP0[j])) #ALPHA0
+
+      Xq=THETA1=list()
+      Q=1
+      Xq[[Q]]=X[,sel.p[STEP-1]]
+      THETA0=unlist(ALPHA0[[sel.p[STEP-1]]])
+      THETA1[[Q]]=theta1[,1]
+
+      fit2=np_lpd_cov2(D=D,YA=YA,YB=YB,Xq=Xq,X=X,cov.idx=cov.idx,p=p,
+                       STEP=STEP,sel.p=sel.p,AUC.p=AUC.p,theta0=theta0,theta1=theta1,
+                       Q=Q,A=A,THETA0=THETA0,THETA1=THETA1,ALPHA0=ALPHA0, n=n)
+
+      if(is.na(fit2$AUC.p[STEP]))
+        STEP=1
+
+      AUC.inc=fit2$AUC.p[STEP]-AUC.p[STEP-1]
+      if(AUC.inc<eps) #no improvement
+        STEP=1        #Will be stopped
+
+      theta0=fit2$theta0
+      theta1=fit2$theta1
+      sel.p=fit2$sel.p
+      AUC.p=fit2$AUC.p
     }
-    theta.hat=c(-theta0,theta)
-    names(theta.hat)=paste0("theta",0:p)
-    return(list(df=df,AUCA=AUCA,AUCB=AUCB,AUC=AUC,theta=theta.hat))
-  }
+    if(p>=3 & STEP>=2){
+      for(STEP in 3:p){
+        Xqa=THETA0a=THETA1a=list() #each B & A
+        Xq =THETA0= THETA1 =list() #combine B & A to Q
 
-  sel.p[STEP]=which.max(unlist(res1.mat[,3])) #column 5 is AUC (alpha0, alpha1, AUC.AA, AUC.BB, AUC)
-  AUC.p[STEP]=unlist(res1.mat[sel.p[STEP],3])
-  Xq=X[,sel.p[STEP]]
-  res1q=res1[[sel.p[STEP]]]
-  alpha1q=res1q$alpha1     #direction
-  alpha0q=res1q$alpha0     #threshold
+        #4.2.2. slope modification
+        STEPb=STEP-1 #previous step
+        theta0b=theta0[STEPb]
+        theta1b=unlist(theta1[STEPb,])
 
-  theta[sel.p[STEP]]=alpha1q
-  theta0=alpha1q*alpha0q
+        theta1a.mat=matrix(0,B+1,p)
+        theta1a.mat[1,]=theta1b  #first is without modification
+        theta1a.mat[,sel.p[1]]=1 #ignore direction
 
-  #4.2. forwarded grid rotation
-  p.useful=sum(!is.na(unlist(res1.mat[,3]))) #NA appears when max(AUC) has no improvement
-  if(p.useful<=1)
-    return(list(df=df,AUCA=AUCA,AUCB=AUCB,AUC=AUC,theta=theta.hat))
+        if(B>0){
+          sel.pb=sel.p[2:STEPb]
+          for(k in sel.pb){
+            lwk=theta1b[k]-d*abs(theta1b[k])
+            upk=theta1b[k]+d*abs(theta1b[k])
+            theta1a.mat[2:(B+1),k]=runif(B,lwk,upk)
+          }
+        }
 
-  beta0=beta1=beta2=NA
-  for(STEP in 2:p.useful){
-    res2=list()
-    for(r in cov.idx){
-      res2[[r]]=NA
-      Xr=X[,r]
-      alpha0r=res1[[r]]$alpha0
-      if(!(r%in%sel.p))     #rth variable is not selected;
-        if(!is.na(alpha0r)) #rth variable is useful (NA appears when max(AUC) has no improvement)
-          res2[[r]]=np_lpd_cov2(D,YA,YB,Xq,Xr,alpha0q,alpha0r)
-    }
-    res2.mat=do.call("rbind",res2)
+        #4.2.3. threshold modification for Xq
+        mat.X=as.matrix(X)
+        for(b in 1:(B+1)){
+          THETA1a[[b]]=matrix(theta1a.mat[b,],ncol=1)
+          Xqa[[b]]=mat.X %*% THETA1a[[b]]
+        }
 
-    if(sum(!is.na(res2.mat[,1]))==0){ #no more improvement
-      STEP=STEP-1
-      break
-    }
+        SD =apply(Xqa[[1]],2,sd)
+        MIN=apply(Xqa[[1]],2,min)
+        MAX=apply(Xqa[[1]],2,max)
+        LW1=pmax(MIN,theta0b-c*SD) #block
+        UP1=pmin(MAX,theta0b+c*SD)
+        THETA0a=c(theta0b,runif(A,LW1,UP1)) #ALPHA0
 
-    #4.5.2. sel.p: which cov is choosed; AUC.p: correspoinding AUC
-    sel.p[STEP]=which.max(unlist(res2.mat[,4])) #column 4 for AUC
-    AUC.p[STEP]=unlist(res2.mat[sel.p[STEP],4])
-    AUC.inc=AUC.p[STEP]-AUC.p[STEP-1] #AUC increment
-    if(AUC.inc<eps){ #stop
-      #sel.p=sel.p[-STEP]
-      #AUC.p=AUC.p[-STEP]
-      STEP=STEP-1
-      break
-    }
+        Q=0
+        for(b in 1:(B+1)){
+          for(a in 1:(A+1)){
+            Q=Q+1
+            Xq[[Q]]=Xqa[[b]]
+            THETA1[Q]=THETA1a[b]
+            THETA0[Q]=THETA0a[a]
+        }
+      }
+      THETA0=unlist(THETA0)
 
-    Xr=X[,sel.p[STEP]]
+      #4.2.4. grid rotation
+      fit2=np_lpd_cov2(D=D,YA=YA,YB=YB,Xq=Xq,X=X,cov.idx=cov.idx,p=p,
+                       STEP=STEP,sel.p=sel.p,AUC.p=AUC.p,theta0=theta0,theta1=theta1,
+                       Q=Q,A=A,THETA0=THETA0,THETA1=THETA1,ALPHA0=ALPHA0, n=n)
+      if(is.na(fit2$AUC.p[STEP])){
+        STEP=STEP-1
+        break
+      }
+      AUC.inc=fit2$AUC.p[STEP]-AUC.p[STEP-1]
+      if(AUC.inc<eps){
+        STEP=STEP-1
+        break
+      }
 
-    res2q=res2[[sel.p[STEP]]]
-    beta0[STEP]=beta0qr=res2q$beta0
-    beta1[STEP]=beta1qr=res2q$beta1
-    beta2[STEP]=beta2qr=res2q$beta2
-
-    Xq=Xq-beta2qr*Xr#lin comb
-    alpha0q=beta0qr #threshold
-  }
-
-  #reparameterization
-  if(STEP>=2){
-    theta=rep(0,p); theta0=NA
-    theta[sel.p[1]]=beta1[STEP]    #last direction parameter is only used
-    theta0=beta1[STEP]*beta0[STEP] #last direction parameter & intercept are only used
-    if(STEP>2){
-      for(j in STEP:2){         #for theta0 & theta, multiplication of beta1[STEP] for adjusting the direction
-        theta[sel.p[j]]=-beta1[STEP]*beta2[j]
+      theta0=fit2$theta0
+      theta1=fit2$theta1
+      sel.p=fit2$sel.p
+      AUC.p=fit2$AUC.p
       }
     }
   }
 
+  #4.2.5. estimated parameters
+  theta1=as.numeric(theta1[STEP,])
+  theta0=as.numeric(theta0[STEP])
+
+  if(theta1[sel.p[1]]==-1){ #reparameterization
+    theta1=theta1*(-1)
+    theta1[sel.p[1]]=-1
+    theta0=theta0*(-1)
+  }
+  names(theta1)=paste0("theta",1:p)
+
   ###
   #5. subgroup AUCs
   ###
-  #5.1. tau
-  theta.hat=matrix(c(-theta0,theta),ncol=1) #equivalent to X1%*%theta>theta0
-  X1=as.matrix(cbind(1,X))
-  LP=X1%*%theta.hat #linear predicttor for personalized diagnostics rule
-
-  tau=NA
-  tau[which(LP>=0)]="A"
-  tau[which(LP<0)]="B"
-  df$tau=tau
-
-  #5.2. subAUC
-  DA=D[tau=="A"]
-  YAA=YA[tau=="A"]
-
-  DB=D[tau=="B"]
-  YBB=YB[tau=="B"]
-
-  D.comb=c(DA,DB)
-  YAB.comb=c(YAA,YBB)
-
-  AUC=np_lpd_auc(D.comb,YAB.comb)
+  df=YC3.ft(df=df,theta0=theta0,theta1=theta1,n=n,p=p,num.out=num.out)
+  roc.C=pROC::roc(df$D~df$YC,direction="<",levels=c(0,1))
+    AUC.C=roc.C$auc+0
+    cut.C=roc.C$thresholds
+    tp.C=roc.C$sensitivities
+    fp.C=1-roc.C$specificities
+    tpfp.C=data.frame(cutoff=cut.C,tp=tp.C,fp=fp.C)
 
   ###
-  #7. plot
+  #6. plot
   ###
-  if(PLOT==TRUE){
-    roc.A=pROC::roc(D~YA,direction="<",levels=c(0,1))
-    roc.B=pROC::roc(D~YB,direction="<",levels=c(0,1))
+  if(plot==TRUE){
+    roc.A=pROC::roc(df$D~df$YA,direction="<",levels=c(0,1))
+    roc.B=pROC::roc(df$D~df$YB,direction="<",levels=c(0,1))
 
-    roc.AB=pROC::roc(D.comb~YAB.comb,direction="<",levels=c(0,1))
+    tp.A=roc.A$sensitivities; fp.A=1-roc.A$specificities
+    tp.B=roc.B$sensitivities; fp.B=1-roc.B$specificities
 
-    tp.A=roc.A$sensitivities;   fp.A=1-roc.A$specificities
-    tp.B=roc.B$sensitivities;   fp.B=1-roc.B$specificities
-    tp.AB=roc.AB$sensitivities; fp.AB=1-roc.AB$specificities
-
-    plot(tp.AB~fp.AB,type='l',ylab="Sensitivity",xlab="1-Specificity",col=1,lwd=2,main="ROC")
+    plot  (tp.C~fp.C,type='l',ylab="Sensitivity",xlab="1-Specificity",col=1,lwd=1,main="ROC")
     points(tp.A~fp.A,type='l',col=2,lwd=1)
     points(tp.B~fp.B,type='l',col=4,lwd=1)
-    abline(a=0,b=1,col="darkgray",lwd=1)
-    legend("bottomright",c("AUC","AUCA","AUCB"),col=c(1,2,4),lwd=c(2,1,1),bty='n')
+    #abline(a=0,b=1,col="darkgray",lwd=1)
+    legend("bottomright",c("AUC","AUCA","AUCB"),col=c(1,2,4),lwd=c(1,1,1),bty='n')
   }
 
-  df$YC=YAB.comb
-  if(dirA==">") df$YA=-YA
-  if(dirB==">") df$YB=-YB
+  if(dirA==">") df$YA=-df$YA
+  if(dirB==">") df$YB=-df$YB
 
-  theta.hat=c(theta.hat)
-  names(theta.hat)=paste0("theta",0:p)
-
-  return(list(df=df,
-              AUCA=AUCA,AUCB=AUCB,     #global AUC
-              AUC=AUC,
-              theta=theta.hat #decision rule. -theta0 is t1X1+...tpXp>t0 => -t0 + vs t1X1+...tpXp>0.
-              ))
+  return(list(df=df,AUCA=AUCA,AUCB=AUCB,
+              AUC=AUC.C,tpfp=tpfp.C, theta=theta1, theta0=theta0))
 }
